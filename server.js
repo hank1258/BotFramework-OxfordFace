@@ -41,10 +41,10 @@ server.listen(process.env.port || process.env.PORT || 3978, function () {
 
 // Create chat bot
 var connector = new builder.ChatConnector({
- 
- 
-    appId: process.env.MICROSOFT_APP_ID ,//|| "39e398aa-5e7a-43c7-9079-fcb4f07a6dbc",
-    appPassword: process.env.MICROSOFT_APP_PASSWORD //|| "tZtei6Px5cY90yxTkP9HdQ6"
+    appId: process.env.MICROSOFT_APP_ID || "46f3c125-0de0-4793-aa9e-7f2cea05edd8",
+    appPassword: process.env.MICROSOFT_APP_PASSWORD || "sLbbW5UBJT4MkOegHm15m1H"
+    // appId: process.env.MICROSOFT_APP_ID || "39e398aa-5e7a-43c7-9079-fcb4f07a6dbc",
+    // appPassword: process.env.MICROSOFT_APP_PASSWORD || "tZtei6Px5cY90yxTkP9HdQ6"
  
 });
 var bot = new builder.UniversalBot(connector);
@@ -61,13 +61,11 @@ var dialog = new builder.IntentDialog({ recognizers: [recognizer] });
 bot.dialog('/', dialog);
 
 
-
 //開場LUIS
 dialog.matches('你好', [
   function (session, args, next) {
-    var reply_str = '請上傳一張照片讓我看看在場的俊男美女';
-      session.send(reply_str);   
-      
+    console.log("here")
+    builder.Prompts.attachment(session, '請上傳一張照片讓我看看在場的俊男美女');
   },
    function (session, results) {
        if (typeof session.message.attachments[0] !== 'undefined') {
@@ -224,15 +222,14 @@ function upLoadImage(att_url,session) {
                            }
 
                            var faceid = "";
- 
- 
-                           for (j = 0; j < myJson.length; j++) {
+                           console.log(myJson.length);
+                           for (j = 0; j < Math.min(myJson.length, 10); j++) {
                                faceid = faceid + myJson[j].faceId;
-                               if (j != myJson.length - 1) {
- 
+                               if (j != Math.min(myJson.length, 10) - 1) {
                                    faceid = faceid + ",";
                                }
                            }
+                           console.log(faceid);
                            var array = faceid.split(',');
  
                            var identify_reqbody = {
