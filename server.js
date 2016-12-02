@@ -43,10 +43,8 @@ server.listen(process.env.port || process.env.PORT || 3978, function() {
 var connector = new builder.ChatConnector({
   appId: process.env.MICROSOFT_APP_ID || "46f3c125-0de0-4793-aa9e-7f2cea05edd8",
   appPassword: process.env.MICROSOFT_APP_PASSWORD || "sLbbW5UBJT4MkOegHm15m1H"
-    // appId: process.env.MICROSOFT_APP_ID || "39e398aa-5e7a-43c7-9079-fcb4f07a6dbc",
-    // appPassword: process.env.MICROSOFT_APP_PASSWORD || "tZtei6Px5cY90yxTkP9HdQ6"
-
 });
+
 var bot = new builder.UniversalBot(connector);
 server.post('/api/messages', connector.listen());
 
@@ -85,8 +83,8 @@ dialog.matches('你好', [
 //intent LUIS 請客     根目錄/smileFace & actionmoneyFace為判斷笑容值 ＆ Jerry/younger 
 dialog.matches('開心', [
   function(session, args) {
-    // builder.Prompts.attachment(session, '請上傳一張照片讓我看看誰最開心');
     var msg = new builder.Message(session);
+    console.log("smile_filename", smile_filename);
     msg.attachments([{
       contentType: "image/jpeg",
       contentUrl: "https://13threaltimeinsight.blob.core.windows.net/imagescontainer/" + smile_filename,
@@ -204,7 +202,8 @@ function upLoadImage(att_url, session) {
                 smile_person_index = i;
               }
             }
-
+            cropSmileFace(att_url, myJson, smile_person_index);
+           
             var total_iter = Math.ceil(myJson.length / 10);
             var residue = myJson.length % 10;
             var count = 0;
@@ -213,30 +212,15 @@ function upLoadImage(att_url, session) {
             var response_count = 0;
 
             for (count = 0; count < total_iter; count++) {
-              var faceid = "";
-
-              if (count == total_iter - 1) { // last iteration
-                for (j = 0; j < Math.min(residue, 10); j++) {
-                  faceid = faceid + myJson[j + count * 10].faceId;
-                  if (j != Math.min(residue, 10) - 1) {
-                    faceid = faceid + ",";
-                  }
-                }
-
-              } else {
-                for (j = 0; j < Math.min(myJson.length, 10); j++) {
-                  faceid = faceid + myJson[j + count * 10].faceId;
-                  if (j != Math.min(myJson.length, 10) - 1) {
-                    faceid = faceid + ",";
-                  }
-                }
-
+              var facelist = [];
+              for (j = 0; j < Math.min(count == total_iter - 1 ? residue : myJson.length, 10); j++) {
+                facelist.push(myJson[j + count * 10].faceId);
               }
-              var array = faceid.split(',');
+              console.log(facelist);
 
               var identify_reqbody = {
                 "personGroupId": "mtcbotdemo",
-                "faceIds": array,
+                "faceIds": facelist,
                 "maxNumOfCandidatesReturned": 1,
                 "confidenceThreshold": 0.623
               };
@@ -249,8 +233,7 @@ function upLoadImage(att_url, session) {
                 .end(function(icount) {
                   return function(error, response) {
                     if (!error && response.statusCode == 200) {
-                      //response_count++;
-
+                      
                       var identify_Json = JSON.parse(JSON.stringify(response.body));
                       var i_index;
                       console.log(identify_Json);
@@ -272,15 +255,9 @@ function upLoadImage(att_url, session) {
                       }
 
                       var pic = gm(httprequest(att_url));
-                      var smile_pic = gm(httprequest(att_url));
-                      pic.stroke('#FFBB00')
-                        .strokeWidth(5);
-                      smile_pic.stroke('#FFFF00')
-                        .strokeWidth(4);
-                      var x, smile_x;
-                      var y, smile_y;
-                      var width, smile_width;
-                      var height, smile_height;
+                      pic.stroke('#FFBB00').strokeWidth(5);
+
+                      var x, y, width, height;
 
                       if (person_index == -1) {
                         x = myJson[young_person_index].faceRectangle.left;
@@ -294,80 +271,51 @@ function upLoadImage(att_url, session) {
                         height = myJson[person_index].faceRectangle.height;
                       }
 
-                      smile_x = myJson[smile_person_index].faceRectangle.left;
-                      smile_y = myJson[smile_person_index].faceRectangle.top;
-                      smile_width = myJson[smile_person_index].faceRectangle.width;
-                      smile_height = myJson[smile_person_index].faceRectangle.height;
-
                       pic.drawLine(x, y, x + width, y)
                         .drawLine(x, y, x, y + height)
                         .drawLine(x, y + height, x + width, y + height)
                         .drawLine(x + width, y, x + width, y + height);
-                      if (CROP) {
-                        smile_pic.crop(smile_width, smile_height, smile_x, smile_y);
-                      } else {
-                        smile_pic.drawLine(smile_x, smile_y, smile_x + smile_width, smile_y)
-                          .drawLine(smile_x, smile_y, smile_x, smile_y + smile_height)
-                          .drawLine(smile_x, smile_y + smile_height, smile_x + smile_width, smile_y + smile_height)
-                          .drawLine(smile_x + smile_width, smile_y, smile_x + smile_width, smile_y + smile_height);
-                      }
+
+                     
                       filename = (Math.random() + 1).toString(24).substring(4) + '.jpg';
 
                       if (found) {
                         found_filename = filename
                       }
 
-                      smile_filename = 'sm_' + filename;
                       dir_filename = './' + filename;
-                      smdir_filename = './' + smile_filename;
 
                       pic.write(filename, function(err) {
-                        if (!err) {
-                          blobSvc.createBlockBlobFromLocalFile('imagescontainer', filename, dir_filename, function(error, result, response) {
-                            if (error) {
-                              console.log("Couldn't upload stream");
-                              console.error(error);
-                            } else {
-                              if (flag == 0) {
-                                console.log('Stream uploaded successfully');
-                                var reply_str = '我看到了有';
-                                if (man_count != 0) {
-                                  reply_str = reply_str + man_count + '位男嘉賓';
-                                }
-                                if (woman_count != 0) {
-                                  if (man_count != 0) {
-                                    reply_str = reply_str + '和' + woman_count + '位女嘉賓';
-                                  } else {
-                                    reply_str = reply_str + woman_count + '位女嘉賓';
-                                  }
-                                }
-                                reply_str = reply_str + '，歡迎參觀微軟 :-)';
-                                session.send(reply_str);
-                                man_count = 0;
-                                woman_count = 0;
-                                flag = 1;
+                        if (err) {
+                          console.log(err);
+                          return;
+                        }
+                        blobSvc.createBlockBlobFromLocalFile('imagescontainer', filename, dir_filename, function(error, result, response) {
+                          if (error) {
+                            console.log("Couldn't upload stream");
+                            console.error(error);
+                            return;
+                          } 
+                          if (flag == 0) {
+                            console.log('Stream uploaded successfully');
+                            var reply_str = '我看到了有';
+                            if (man_count != 0) {
+                              reply_str = reply_str + man_count + '位男嘉賓';
+                            }
+                            if (woman_count != 0) {
+                              if (man_count != 0) {
+                                reply_str = reply_str + '和' + woman_count + '位女嘉賓';
+                              } else {
+                                reply_str = reply_str + woman_count + '位女嘉賓';
                               }
                             }
-                          });
-
-                        } else {
-                          console.log(err);
-                        }
-                      });
-                      smile_pic.write(smile_filename, function(err) {
-                        if (!err) {
-                          blobSvc.createBlockBlobFromLocalFile('imagescontainer', smile_filename, smdir_filename, function(error, result, response) {
-                            if (error) {
-                              console.log("Couldn't upload stream");
-                              console.error(error);
-                            } else {
-                              console.log('smile Stream uploaded successfully');
-
-                            }
-                          });
-                        } else {
-                          console.log(err);
-                        }
+                            reply_str = reply_str + '，歡迎參觀微軟 :-)';
+                            session.send(reply_str);
+                            man_count = 0;
+                            woman_count = 0;
+                            flag = 1;
+                          }
+                        });
                       });
                     } else {
                       console.log(response.statusCode);
@@ -387,5 +335,41 @@ function upLoadImage(att_url, session) {
       console.log(error);
       console.log(body);
     }
+  });
+}
+
+function cropSmileFace(att_url, faces, index) {
+  var pic = gm(httprequest(att_url));
+  pic.stroke('#FFFF00').strokeWidth(4);
+
+  filename = (Math.random() + 1).toString(24).substring(4) + '.jpg';
+  smile_filename = 'sm_' + filename;
+  smdir_filename = './' + smile_filename;
+
+  var x = faces[index].faceRectangle.left;
+  var y = faces[index].faceRectangle.top;
+  var width = faces[index].faceRectangle.width;
+  var height = faces[index].faceRectangle.height;
+
+  if (CROP) {
+    pic.crop(width, height, x, y);
+  } else {
+    pic.drawLine(x, y, x + width, y)
+      .drawLine(x, y, x, y + height)
+      .drawLine(x, y + height, x + width, y + height)
+      .drawLine(x + width, y, x + width, y + height);
+  }
+
+  pic.write(smile_filename, function(err) {
+    if (err) {
+      console.log(err);
+      return;
+    }
+    blobSvc.createBlockBlobFromLocalFile('imagescontainer', smile_filename, smdir_filename, function(error, result, response) {
+      if (error) {
+        console.log("Couldn't upload stream");
+        console.error(error);
+      }
+    });
   });
 }
