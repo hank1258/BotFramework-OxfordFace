@@ -97,9 +97,9 @@ dialog.matches('開心', [
     max_smile_value = 0;
   },
 ]);
+
 dialog.matches('認識', [
   function(session, args) {
-    // builder.Prompts.attachment(session, '請上傳一張照片讓我看看今天午餐誰來請客');
     var msg = new builder.Message(session);
     if (found) {
       url = "https://13threaltimeinsight.blob.core.windows.net/imagescontainer/" + found_filename;
@@ -130,8 +130,8 @@ dialog.matches('認識', [
     session.send(reply_str);
   }
 ]);
-dialog.matches('請客', [
 
+dialog.matches('請客', [
   function(session, args, next) {
     // builder.Prompts.attachment(session, '請上傳一張照片讓我看看今天午餐誰來請客');
     var msg = new builder.Message(session);
@@ -205,25 +205,13 @@ function upLoadImage(att_url, session) {
               }
             }
 
-            console.log(myJson.length);
-            var total_iter = 1;
-            var count_length = 0;
-            var residue = 0;
-
-            for (total_iter = 1;; total_iter++) {
-              count_length = count_length + 10;
-
-              if (count_length >= myJson.length) {
-                residue = count_length - myJson.length;
-                residue = 10 - residue;
-                break;
-              }
-            }
-
+            var total_iter = Math.ceil(myJson.length / 10);
+            var residue = myJson.length % 10;
             var count = 0;
             var found = 0;
             var flag = 0;
             var response_count = 0;
+
             for (count = 0; count < total_iter; count++) {
               var faceid = "";
 
@@ -376,7 +364,6 @@ function upLoadImage(att_url, session) {
                               console.log('smile Stream uploaded successfully');
 
                             }
-                            // session.endDialog(msg);
                           });
                         } else {
                           console.log(err);
