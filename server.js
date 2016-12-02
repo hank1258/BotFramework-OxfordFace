@@ -28,7 +28,8 @@ var FACEKEY = "8f7a031e5133417aa8b1f1ab525efec1";
 var CROP = true;
 var KC_ID="7c1e96f9-c73c-4eea-951b-61aab07c1b16";
 var JERRY_ID="16ef3542-84b4-448e-9250-9f57773f183b";
-var FinalName=""; 
+var FinalName="";
+var found = false; 
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -38,8 +39,8 @@ server.listen(process.env.port || process.env.PORT || 3978, function () {
 
 // Create chat bot
 var connector = new builder.ChatConnector({
-  appId: process.env.MICROSOFT_APP_ID , //    || "46f3c125-0de0-4793-aa9e-7f2cea05edd8",
-  appPassword: process.env.MICROSOFT_APP_PASSWORD  //|| "sLbbW5UBJT4MkOegHm15m1H"
+  appId: process.env.MICROSOFT_APP_ID || "46f3c125-0de0-4793-aa9e-7f2cea05edd8",
+  appPassword: process.env.MICROSOFT_APP_PASSWORD || "sLbbW5UBJT4MkOegHm15m1H"
   // appId: process.env.MICROSOFT_APP_ID || "39e398aa-5e7a-43c7-9079-fcb4f07a6dbc",
   // appPassword: process.env.MICROSOFT_APP_PASSWORD || "tZtei6Px5cY90yxTkP9HdQ6"
  
@@ -96,10 +97,10 @@ dialog.matches('認識', [
   function (session, args) {
    // builder.Prompts.attachment(session, '請上傳一張照片讓我看看今天午餐誰來請客');
   var msg = new builder.Message(session);
-  if (person_index == -1) {
-    url =  "https://13threaltimeinsight.blob.core.windows.net/imagescontainer/" + filename;
+  if (found) {
+    url =  "https://13threaltimeinsight.blob.core.windows.net/imagescontainer/" + found_filename;
   } else {
-    url = "https://13threaltimeinsight.blob.core.windows.net/imagescontainer/" + found_filename;
+    url = "https://13threaltimeinsight.blob.core.windows.net/imagescontainer/" + filename;
   }
   msg.attachments([{
     contentType: "image/jpeg",
@@ -156,7 +157,7 @@ dialog.matches('請客', [
 ]);
 
 function upLoadImage(att_url,session) {
-   
+  found = false;
   httprequest.get(att_url, function (error, response, body) {
 
     if (!error && response.statusCode == 200) {
@@ -239,10 +240,7 @@ function upLoadImage(att_url,session) {
                      "personGroupId": "mtcbotdemo",
                      "faceIds": array,
                      "maxNumOfCandidatesReturned": 1,
-     
-     
                      "confidenceThreshold": 0.623
-     
                    };
                  
                    request
@@ -251,7 +249,6 @@ function upLoadImage(att_url,session) {
                    .set('Ocp-Apim-Subscription-Key', FACEKEY)
                    .send(identify_reqbody)
                    .end(function(icount) { 
-                    console.log("icount", icount);
                       return function (error, response) {
                        if (!error && response.statusCode == 200) {
                         //response_count++;
@@ -259,75 +256,72 @@ function upLoadImage(att_url,session) {
                          var identify_Json = JSON.parse(JSON.stringify(response.body));
                          var i_index;
                          console.log(identify_Json);
-                         for (i_index = 0; i_index < identify_Json.length; i_index++) {
-                           if (identify_Json[i_index].candidates.length != 0) {
+                        for (i_index = 0; i_index < identify_Json.length; i_index++) {
+                          if (identify_Json[i_index].candidates.length != 0) {
                              person_index = i_index+ icount*10;
                              personid = identify_Json[i_index].candidates[0].personId;
                              person_confidence = identify_Json[i_index].candidates[0].confidence;
      
-                             if(personid==JERRY_ID){
+                            if (personid==JERRY_ID) {
                               FinalName="微軟總經理Jerry";
-                              found=1;
+                              found=true;
                               break;
-                             }else if(personid==KC_ID){
+                            } else if (personid==KC_ID) {
                               FinalName="微軟副總經理KC";
-                              found=1;
-                             
-                             }
-
-                           }
-
-                         }
+                              found=true;
+                            }
+                          }
+                        }
                        
-                         var pic = gm(httprequest(att_url));
-                         var smile_pic = gm(httprequest(att_url));
-                         pic.stroke('#FFBB00')
-                          .strokeWidth(8);
-                         smile_pic.stroke('#FFFF00')
-                              .strokeWidth(7);
-                         var x, smile_x;
-                         var y, smile_y;
-                         var width, smile_width;
-                         var height, smile_height;
+                        var pic = gm(httprequest(att_url));
+                        var smile_pic = gm(httprequest(att_url));
+                        pic.stroke('#FFBB00')
+                        .strokeWidth(5);
+                        smile_pic.stroke('#FFFF00')
+                            .strokeWidth(4);
+                        var x, smile_x;
+                        var y, smile_y;
+                        var width, smile_width;
+                        var height, smile_height;
                         
-                         if (person_index == -1) {
-                           x = myJson[young_person_index].faceRectangle.left;
-                           y = myJson[young_person_index].faceRectangle.top;
-                           width = myJson[young_person_index].faceRectangle.width;
-                           height = myJson[young_person_index].faceRectangle.height;
-                         } else {
-                           x = myJson[person_index].faceRectangle.left;
-                           y = myJson[person_index].faceRectangle.top;
-                           width = myJson[person_index].faceRectangle.width;
-                           height = myJson[person_index].faceRectangle.height;
-                         }
+                        if (person_index == -1) {
+                          x = myJson[young_person_index].faceRectangle.left;
+                          y = myJson[young_person_index].faceRectangle.top;
+                          width = myJson[young_person_index].faceRectangle.width;
+                          height = myJson[young_person_index].faceRectangle.height;
+                        } else {
+                          x = myJson[person_index].faceRectangle.left;
+                          y = myJson[person_index].faceRectangle.top;
+                          width = myJson[person_index].faceRectangle.width;
+                          height = myJson[person_index].faceRectangle.height;
+                        }
                          
-                         smile_x = myJson[smile_person_index].faceRectangle.left;
-                         smile_y = myJson[smile_person_index].faceRectangle.top;
-                         smile_width = myJson[smile_person_index].faceRectangle.width;
-                         smile_height = myJson[smile_person_index].faceRectangle.height;
+                        smile_x = myJson[smile_person_index].faceRectangle.left;
+                        smile_y = myJson[smile_person_index].faceRectangle.top;
+                        smile_width = myJson[smile_person_index].faceRectangle.width;
+                        smile_height = myJson[smile_person_index].faceRectangle.height;
                           
-                         pic.drawLine(x, y, x + width, y)
-                          .drawLine(x, y, x, y + height)
-                          .drawLine(x, y + height, x + width, y + height)
-                          .drawLine(x + width, y, x + width, y + height);
-                         if (CROP) {
-                           smile_pic.crop(smile_width, smile_height, smile_x, smile_y);
-                         } else {
-                           smile_pic.drawLine(smile_x, smile_y, smile_x + smile_width, smile_y)
-                            .drawLine(smile_x, smile_y, smile_x, smile_y + smile_height)
-                            .drawLine(smile_x, smile_y + smile_height, smile_x + smile_width, smile_y + smile_height)
-                            .drawLine(smile_x + smile_width, smile_y, smile_x + smile_width, smile_y + smile_height);
-                         }
-                         filename = (Math.random() + 1).toString(24).substring(4) + '.jpg';
+                        pic.drawLine(x, y, x + width, y)
+                        .drawLine(x, y, x, y + height)
+                        .drawLine(x, y + height, x + width, y + height)
+                        .drawLine(x + width, y, x + width, y + height);
+                        if (CROP) {
+                         smile_pic.crop(smile_width, smile_height, smile_x, smile_y);
+                        } else {
+                         smile_pic.drawLine(smile_x, smile_y, smile_x + smile_width, smile_y)
+                          .drawLine(smile_x, smile_y, smile_x, smile_y + smile_height)
+                          .drawLine(smile_x, smile_y + smile_height, smile_x + smile_width, smile_y + smile_height)
+                          .drawLine(smile_x + smile_width, smile_y, smile_x + smile_width, smile_y + smile_height);
+                        }
+                        filename = (Math.random() + 1).toString(24).substring(4) + '.jpg';
                         
-                        if(person_index != -1){
+                        if(found){
                           found_filename = filename
                         }
 
-                         smile_filename = 'sm_' + filename;
-                         dir_filename = './' + filename;
-                         smdir_filename = './' + smile_filename;
+                        smile_filename = 'sm_' + filename;
+                        dir_filename = './' + filename;
+                        smdir_filename = './' + smile_filename;
                          
                          pic.write(filename, function (err) {
                            if (!err) {
