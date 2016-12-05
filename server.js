@@ -163,10 +163,13 @@ dialog.matches('請客', [
   }
 ]);
 
-foo = async(function(att_url,request_body,session){
+FaceAnalyze = async(function(att_url,request_body,session){
 
-  
+    session.send("開始分析...");
+
     var detect_response=sendDetectedFace(request_body,true,true,true,true,true);
+
+    session.send("再給我一下下...");
 
     if(detect_response.statusCode != 200){
       console.log("detect error");
@@ -193,9 +196,10 @@ foo = async(function(att_url,request_body,session){
       }
     }
    
-    replyGuestNum(session,man_count,woman_count);
     
     cropSmileFace(att_url, myJson, smile_person_index);
+
+    session.send("大家都看起來很開心呢!!");
 
     var total_iter = Math.ceil(myJson.length / 10);
     var residue = myJson.length % 10;
@@ -212,7 +216,9 @@ foo = async(function(att_url,request_body,session){
      
       var i_index;  
       for (i_index = 0; i_index < identify_Json.length; i_index++) {
+
         if (identify_Json[i_index].candidates.length != 0) {
+
           person_index = i_index + count * 10;
           personid = identify_Json[i_index].candidates[0].personId;
           person_confidence = identify_Json[i_index].candidates[0].confidence;
@@ -223,17 +229,25 @@ foo = async(function(att_url,request_body,session){
           } else if (personid == KC_ID) {
             FinalName = "微軟副總經理KC";
             found = true;
+            
           }
         }
       }
-   
-    }
 
+    }
+    
     if (person_index == -1) {
       youngestOrFound(att_url,myJson,young_person_index);
     } else {
       youngestOrFound(att_url,myJson,person_index);
     }
+
+    session.send("分析完畢 :)");
+
+    setTimeout(function() {
+      replyGuestNum(session,man_count,woman_count);//your code to be executed after 2.5 second
+    }, 2500);
+    
   
 });
 function replyGuestNum(session,man_count,woman_count){
@@ -316,170 +330,8 @@ function upLoadImage(att_url, session) {
 
       var attachment_img = new Buffer(body, 'binary');
    
-      foo(att_url,attachment_img,session);
-      /*request
-        .post("https://api.projectoxford.ai/face/v1.0" + "/detect?")
-        .query({
-          returnFaceId: true
-        })
-        .query({
-          returnFaceLandmarks: true
-        })
-        .query({
-          returnFaceAttributes: "age,gender,smile"
-        })
-        .set('Content-Type', 'application/octet-stream')
-        .set('Ocp-Apim-Subscription-Key', FACEKEY)
-        .send(request_body)
-        .end(function(error, response) {
-          if (!error && response.statusCode == 200) {
-            var myJson = JSON.parse(JSON.stringify(response.body));
-
-            for (i = 0; i < myJson.length; i++) {
-              if (myJson[i].faceAttributes.age < max_age) {
-                young_person_index = i;
-                max_age = myJson[i].faceAttributes.age;
-              }
-
-              if (myJson[i].faceAttributes.gender == 'male') {
-                man_count = man_count + 1;
-              } else if (myJson[i].faceAttributes.gender == 'female') {
-                woman_count = woman_count + 1;
-              }
-
-              if (myJson[i].faceAttributes.smile > max_smile_value) {
-                max_smile_value = myJson[i].faceAttributes.smile;
-                smile_person_index = i;
-              }
-            }
-            cropSmileFace(att_url, myJson, smile_person_index);
-           
-            var total_iter = Math.ceil(myJson.length / 10);
-            var residue = myJson.length % 10;
-            var count = 0;
-            var found = 0;
-            var flag = 0;
-            var response_count = 0;
-
-            for (count = 0; count < total_iter; count++) {
-              var facelist = [];
-              for (j = 0; j < Math.min(count == total_iter - 1 ? residue : myJson.length, 10); j++) {
-                facelist.push(myJson[j + count * 10].faceId);
-              }
-              console.log(facelist);
-
-              var identify_reqbody = {
-                "personGroupId": "mtcbotdemo",
-                "faceIds": facelist,
-                "maxNumOfCandidatesReturned": 1,
-                "confidenceThreshold": 0.623
-              };
-
-              request
-                .post("https://api.projectoxford.ai/face/v1.0" + "/identify")
-                .set('Content-Type', 'application/json')
-                .set('Ocp-Apim-Subscription-Key', FACEKEY)
-                .send(identify_reqbody)
-                .end(function(icount) {
-                  return function(error, response) {
-                    if (!error && response.statusCode == 200) {
-                      
-                      var identify_Json = JSON.parse(JSON.stringify(response.body));
-                      var i_index;
-                      console.log(identify_Json);
-                      for (i_index = 0; i_index < identify_Json.length; i_index++) {
-                        if (identify_Json[i_index].candidates.length != 0) {
-                          person_index = i_index + icount * 10;
-                          personid = identify_Json[i_index].candidates[0].personId;
-                          person_confidence = identify_Json[i_index].candidates[0].confidence;
-
-                          if (personid == JERRY_ID) {
-                            FinalName = "微軟總經理Jerry";
-                            found = true;
-                            break;
-                          } else if (personid == KC_ID) {
-                            FinalName = "微軟副總經理KC";
-                            found = true;
-                          }
-                        }
-                      }
-
-                      var pic = gm(httprequest(att_url));
-                      pic.stroke('#FFBB00').strokeWidth(5);
-
-                      var x, y, width, height;
-
-                      if (person_index == -1) {
-                        x = myJson[young_person_index].faceRectangle.left;
-                        y = myJson[young_person_index].faceRectangle.top;
-                        width = myJson[young_person_index].faceRectangle.width;
-                        height = myJson[young_person_index].faceRectangle.height;
-                      } else {
-                        x = myJson[person_index].faceRectangle.left;
-                        y = myJson[person_index].faceRectangle.top;
-                        width = myJson[person_index].faceRectangle.width;
-                        height = myJson[person_index].faceRectangle.height;
-                      }
-
-                      pic.drawLine(x, y, x + width, y)
-                        .drawLine(x, y, x, y + height)
-                        .drawLine(x, y + height, x + width, y + height)
-                        .drawLine(x + width, y, x + width, y + height);
-
-                     
-                      filename = (Math.random() + 1).toString(24).substring(4) + '.jpg';
-
-                      if (found) {
-                        found_filename = filename
-                      }
-
-                      dir_filename = './' + filename;
-
-                      pic.write(filename, function(err) {
-                        if (err) {
-                          console.log(err);
-                          return;
-                        }
-                        blobSvc.createBlockBlobFromLocalFile('imagescontainer', filename, dir_filename, function(error, result, response) {
-                          if (error) {
-                            console.log("Couldn't upload stream");
-                            console.error(error);
-                            return;
-                          } 
-                          if (flag == 0) {
-                            console.log('Stream uploaded successfully');
-                            var reply_str = '我看到了有';
-                            if (man_count != 0) {
-                              reply_str = reply_str + man_count + '位男嘉賓';
-                            }
-                            if (woman_count != 0) {
-                              if (man_count != 0) {
-                                reply_str = reply_str + '和' + woman_count + '位女嘉賓';
-                              } else {
-                                reply_str = reply_str + woman_count + '位女嘉賓';
-                              }
-                            }
-                            reply_str = reply_str + '，歡迎參觀微軟 :-)';
-                            session.send(reply_str);
-                            man_count = 0;
-                            woman_count = 0;
-                            flag = 1;
-                          }
-                        });
-                      });
-                    } else {
-                      console.log(response.statusCode);
-                      console.log(error);
-                    }
-                  }
-                }(count));
-            }
-          } else {
-            console.log(response.body);
-            return callback(error);
-          }
-        });
-     */
+      FaceAnalyze(att_url,attachment_img,session);
+      
     } else {
       console.log(response.statusCode);
       console.log(error);
